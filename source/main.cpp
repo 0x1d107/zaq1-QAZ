@@ -7,7 +7,7 @@
 int main() {
 
     std::ifstream myfile;
-	myfile.open("/home/murellos/projects/inv-q-filtr/signal.txt");
+	myfile.open("signal.txt");
 	std::vector<double> signal;
 	if (myfile.is_open()) { 
 		double val;
@@ -16,9 +16,9 @@ int main() {
 		std::cout << "NONONONO\n";
 	}
 
-    auto corrected = phase_q_correction(signal, 500, 200, 20, 256, 128);
+    auto corrected = phase_q_correction(signal, 1000, 200, 20, 256, 128);
 	std::ofstream myfile2;
-	myfile2.open ("/home/murellos/projects/inv-q-filtr/result.txt");
+	myfile2.open ("result.txt");
 	for (int i = 0; i < corrected.size(); ++i) {
 		myfile2 << corrected[i] << std::endl;
 	}

@@ -6,6 +6,8 @@
 
 #include <eigen3/unsupported/Eigen/FFT>
 #include <complex>
+#include <iostream>
+#include <vector>
 
 #include "stft.hpp"
 
@@ -19,50 +21,76 @@ double fullspec_window(int n,int N){
 	return 1;
 }
 wfunc_t window = hann_window;
+
 CM stft(const std::vector<double> &signal,int nperseg,int overlap){
 	
 	//
-	Eigen:Eigen::FFT<double>fft;
+    std::vector<double> padded;
 	int window_step = nperseg - overlap;
-	int T = (signal.size()/window_step)+((signal.size()%window_step)>0)+1;
-	CM stftm(T,nperseg);
+	std::cout << "STFT"<<std::endl;
+    int rpad = window_step * std::ceil(1.0*signal.size()/window_step) - signal.size();
+    padded.reserve(rpad+signal.size()+window_step);
+    for(int i=0;i<window_step;i++)
+        padded.push_back(0);
+    for(double s : signal)
+        padded.push_back(s);
+    for(int i=0;i<rpad;i++)
+        padded.push_back(0);
+
+
+	Eigen:Eigen::FFT<double>fft;
+	fft.SetFlag(fft.HalfSpectrum);
+	int T = ((padded.size()-nperseg)/window_step)+1;
+	CM stftm(nperseg/2+1,T);
 	for(int i=0;i<T;i++){
 		std::vector<double> f(nperseg);
 		for(int j=0;j<nperseg;j++){
-			f[j] = window(j,nperseg) * signal[j+i*window_step];
+			f[j] = window(j,nperseg) * padded[j+i*window_step];
 		}
-		std::vector<std::complex<double>> frq(nperseg,0);
+		std::vector<std::complex<double>> frq(nperseg/2+1,0);
 		fft.fwd(frq,f);
-		for(int j=0;j<nperseg;j++){
-			stftm(i,j) = frq[j];
+		for(int j=0;j<nperseg/2+1;j++){
+			stftm(j,i) = frq[j];
 		}
 
 
 	}
-	stftm.transposeInPlace();
+
+	std::cout << "STFT OK"<<std::endl;
 	return stftm;
 }
 
-std::vector<double>  istft(const CM& spectrum,int nperseg,int noverlap){
-	CM transposed_spectrum(spectrum);
-	transposed_spectrum.transposeInPlace();
-	Eigen::FFT<double> fft;
-	int window_step = nperseg - noverlap;
-	int T = transposed_spectrum.rows();
-	int length = (T-1)*window_step+nperseg;
-	std::vector<double> signal(length);
-	for(int i=0;i<T;i++){
-		std::vector<std::complex<double>> frq(nperseg,0);
-		std::vector<double> f(nperseg);
-		for(int j = 0; j < nperseg;j++)
-			frq[j] = transposed_spectrum(i,j);
-		fft.inv(f,frq);
-		for(int j = 0; j < nperseg;j++)
-			if(window(j,nperseg)>0)signal[j+window_step*i] = f[j]/window(j,nperseg);
-	
-	}
 
-	return signal;	
+std::vector<double>  istft(const CM& spectrum,int nperseg,int overlap){
+	std::cout << "ISTFT"<<std::endl;
+	Eigen::FFT<double> fft;
+	fft.SetFlag(fft.HalfSpectrum);
+	int window_step = nperseg - overlap;
+	int T = spectrum.cols();
+	int length = (T)*window_step+nperseg;
+	std::vector<double> signal(length,0);
+	std::vector<double> norm(length,0);
+	for(int i=0;i<T;i++){
+		std::vector<std::complex<double>> frq(nperseg/2+1,0);
+		std::vector<double> f(nperseg);
+		for(int j = 0; j < nperseg/2+1;j++)
+			frq[j] = spectrum(j,i);
+		fft.inv(f,frq);
+
+		for(int j = 0; j < nperseg;j++)
+			if(window(j,nperseg)>1e-5){
+				signal[j+window_step*i] += f[j]*window(j,nperseg);
+                norm[j+window_step*i]+=window(j,nperseg)*window(j,nperseg);
+
+			}
+
+	}
+	for(int i=0;i<length;i++)
+        if(norm[i]>1e-10)
+            signal[i]/=norm[i];
+
+
+	return std::vector<double>(signal.begin()+window_step,signal.end());	
 }
 
 int get_freq_count(int nperseg) {
@@ -90,7 +118,7 @@ std::vector<double> get_freq_samples(int nperseg, int fs) {
 }
 
 int  get_time_count(int signal_length, int nperseg, int noverlap) {
-	return std::ceil((double) signal_length / (nperseg - noverlap)) + 1;
+	return  (signal_length-nperseg) / (nperseg - noverlap) + 1;
 }
 
 std::vector<double>  get_time_samples(int signal_length, int nperseg, int noverlap, double fs) {

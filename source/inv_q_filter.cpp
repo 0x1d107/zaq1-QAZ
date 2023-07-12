@@ -43,11 +43,13 @@ std::vector<double> phase_q_correction(const std::vector<double> &signal, double
         corrected_tf_spectra(0, j) = I;
     }
 
-    for (int i = 1; i < nperseg / 2 + 1; ++i) {
+    for (int i = 1; i < nperseg/2+1; ++i) {
         for (int j = 0; j < time_samples_count; ++j) {
            std::complex<double> correction_term = std::exp(I * (std::pow((freq_samples[i] /  target_freq), -gamma) - 1.0) * 2.0 * M_PI * freq_samples[i] * time_samples[j]);
-           corrected_tf_spectra(i, j) = correction_term * original_tf_spectra(i, j); 
+           corrected_tf_spectra(i, j) = correction_term*original_tf_spectra(i, j); 
+		   std::cerr << correction_term << ' ';
         }
+
     }
 
     return istft(corrected_tf_spectra, nperseg, noverlap);
