@@ -4,9 +4,11 @@
 // #include <pybind11/complex.h>
 // #include <pybind11/functional.h>
 
+#include <cmath>
 #include <eigen3/unsupported/Eigen/FFT>
 #include <complex>
 #include <iostream>
+#include <math.h>
 #include <vector>
 
 #include "stft.hpp"
@@ -19,6 +21,15 @@ double hann_window(int n,int N){
 }
 double fullspec_window(int n,int N){
 	return 1;
+}
+double gabor_window(int n,int N){
+    int T = N/2;
+    int t = n-T;
+	if(n<0||n>N)
+		return 0;
+    double x = t*2.0/T;
+	return 2.0/T/sqrt(M_PI)*std::exp(-x*x);
+    
 }
 wfunc_t window = hann_window;
 
